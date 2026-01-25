@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模擬試験クイズアプリ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>模擬試験 191問</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text">
+                <span id="currentQuestion">1</span> / <span id="totalQuestions">191</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="question-container">
+                <div class="question-number">問題 <span id="questionNumber">1</span></div>
+                <div class="question-text" id="questionText"></div>
+            </div>
+
+            <div class="options-container" id="optionsContainer">
+                <!-- 選択肢はJavaScriptで動的に生成 -->
+            </div>
+
+            <div class="answer-section" id="answerSection" style="display: none;">
+                <div class="answer-header">
+                    <h3>正解</h3>
+                </div>
+                <div class="correct-answer" id="correctAnswer"></div>
+                <div class="explanation-container" id="explanationContainer">
+                    <h4>解説</h4>
+                    <div class="explanation-text" id="explanationText"></div>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button id="skipButton" class="control-button skip-button">スキップ</button>
+                <button id="showResultButton" class="control-button result-button" style="display: none;">結果を表示</button>
+            </div>
+
+            <div class="navigation-buttons">
+                <button id="prevButton" class="nav-button" disabled>前の問題</button>
+                <button id="nextButton" class="nav-button">次の問題</button>
+            </div>
+
+            <div class="question-list-container">
+                <h3>問題一覧</h3>
+                <div class="question-grid" id="questionGrid">
+                    <!-- 問題一覧はJavaScriptで動的に生成 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 正解率表示モーダル -->
+    <div class="modal-overlay" id="resultModal" style="display: none;">
+        <div class="modal-content">
+            <h2>試験結果</h2>
+            <div class="result-stats">
+                <div class="stat-item">
+                    <div class="stat-label">正解数</div>
+                    <div class="stat-value" id="correctCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">回答数</div>
+                    <div class="stat-value" id="answeredCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">正解率</div>
+                    <div class="stat-value percentage" id="accuracyRate">0%</div>
+                </div>
+            </div>
+            <div class="result-message" id="resultMessage"></div>
+            <div class="modal-buttons">
+                <button class="modal-button" id="restartButton">再試験を行う</button>
+                <button class="modal-button secondary" id="closeModalButton">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
