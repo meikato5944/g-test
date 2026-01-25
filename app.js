@@ -85,9 +85,11 @@ function getShuffledOptions(question) {
         });
         
         // 正解のインデックスを更新
+        // correctAnswerは1ベース（1, 2, 3, 4）で記録されているため、0ベース（0, 1, 2, 3）に変換
         let newCorrectAnswer = null;
         if (question.correctAnswer !== null) {
-            newCorrectAnswer = originalToShuffled.get(question.correctAnswer);
+            const correctAnswerIndex = question.correctAnswer - 1; // 1ベースから0ベースに変換
+            newCorrectAnswer = originalToShuffled.get(correctAnswerIndex);
         }
         
         shuffledOptions[question.id] = {
@@ -322,6 +324,31 @@ function updateQuestionGrid() {
     });
 }
 
+// 解説文内の選択肢番号をシャッフル後の番号に置き換える
+function replaceOptionNumbersInExplanation(explanation, shuffled) {
+    if (!explanation || !shuffled) return explanation;
+    
+    // 元の選択肢番号（1ベース）からシャッフル後の選択肢番号（1ベース）へのマッピングを作成
+    const optionNumberMap = new Map();
+    for (let originalIndex = 0; originalIndex < 4; originalIndex++) {
+        const shuffledIndex = shuffled.originalToShuffled.get(originalIndex);
+        if (shuffledIndex !== undefined) {
+            // 1ベースの番号でマッピング（元の選択肢番号 → シャッフル後の選択肢番号）
+            optionNumberMap.set(originalIndex + 1, shuffledIndex + 1);
+        }
+    }
+    
+    // 「選択肢1」「選択肢2」などのパターンを置き換え
+    let replacedExplanation = explanation;
+    optionNumberMap.forEach((newNumber, originalNumber) => {
+        // 「選択肢1」「選択肢2」などのパターンを検出して置き換え
+        const pattern = new RegExp(`選択肢${originalNumber}`, 'g');
+        replacedExplanation = replacedExplanation.replace(pattern, `選択肢${newNumber}`);
+    });
+    
+    return replacedExplanation;
+}
+
 // 正解表示を更新（回答済みの問題のみ表示）
 function updateAnswerDisplay() {
     const answerSection = document.getElementById('answerSection');
@@ -338,7 +365,9 @@ function updateAnswerDisplay() {
         correctAnswerDiv.textContent = `正解: ${shuffled.correctAnswerIndex + 1}. ${correctOption}`;
         
         if (question.explanation) {
-            explanationText.textContent = question.explanation;
+            // 解説文内の選択肢番号をシャッフル後の番号に置き換え
+            const adjustedExplanation = replaceOptionNumbersInExplanation(question.explanation, shuffled);
+            explanationText.textContent = adjustedExplanation;
             document.getElementById('explanationContainer').style.display = 'block';
         } else {
             document.getElementById('explanationContainer').style.display = 'none';

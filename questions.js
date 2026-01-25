@@ -833,7 +833,7 @@ const questionsData = [
     "question": "ChatGPT の訓練に使用されている RLHF（Reinforcement Learning with Human Feedback）の説明として、最も適切な選択肢を 1 つ選べ。",
     "options": [
       "利用者にとって有益な出力をするようにモデルを訓練する。",
-      "名称にある \"Human\" とは、OpenAI 社の AI エンジニアを指す。",
+      "名称にある 'Human' とは、OpenAI 社の AI エンジニアを指す。",
       "教師なし学習の後に、出力を決める方策を定める強化学習を行う二段階の訓練を行う。",
       "人間によるフィードバックに基づく強化学習は、コストが高いため一度のみ行われる。"
     ],
@@ -1852,9 +1852,9 @@ const questionsData = [
     "id": 155,
     "question": "国内外の AI 倫理のガイドラインについて、適切な選択肢を 1 つ選べ。",
     "options": [
-      "米国電気電子学会（IEEE）が公表した \"Ethically Aligned Design\" は、米国内の人工知能の専門家の意見を集約して作成された倫理ガイドラインである。",
-      "\"Ethically Aligned Design\" では、自律型兵器システムを開発しないことが宣言されている。",
-      "EU が発表した \"Ethics Guidelines for Trustworthy AI\" では、信頼できる AI を運用するための評価リストが提示されており、これらに関して法規制の導入が進められている。",
+      "米国電気電子学会（IEEE）が公表した 'Ethically Aligned Design' は、米国内の人工知能の専門家の意見を集約して作成された倫理ガイドラインである。",
+      "'Ethically Aligned Design' では、自律型兵器システムを開発しないことが宣言されている。",
+      "EU が発表した 'Ethics Guidelines for Trustworthy AI' では、信頼できる AI を運用するための評価リストが提示されており、これらに関して法規制の導入が進められている。",
       "Google 社、Amazon 社、Meta 社、IBM 社、Microsoft 社など米国の IT 企業を中心に、AI における安全性、公平性、透明性、責任を確立することを目標に、Partnership on AI が形成された。"
     ],
     "correctAnswer": 4,
