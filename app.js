@@ -1,9 +1,20 @@
 // 問題データを読み込む
+let allQuestions = [];
+let questionById = new Map();
 let questions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {}; // { questionId: selectedOptionIndex }
 let shuffledOptions = {}; // { questionId: { shuffledOptions: [...], correctAnswerIndex: number, originalToShuffled: Map } }
 let skippedQuestions = new Set(); // スキップした問題IDのセット
+let orderPreference = null; // 'random' | 'sequential'（初回モーダルで選択）
+let mode = 'normal'; // 'normal' | 'review'
+let eventListenersInitialized = false;
+
+const STORAGE_KEYS = {
+    activeMode: 'gtest_quiz_active_mode_v1',
+    normal: 'gtest_quiz_normal_state_v1',
+    review: 'gtest_quiz_review_state_v1'
+};
 
 // 問題データを読み込む
 function loadQuestions() {
@@ -18,12 +29,12 @@ function loadQuestions() {
         });
         
         // 1から191までのすべての問題を生成（不足分はプレースホルダー）
-        questions = [];
+        allQuestions = [];
         for (let i = 1; i <= 191; i++) {
             if (questionMap.has(i)) {
-                questions.push(questionMap.get(i));
+                allQuestions.push(questionMap.get(i));
             } else {
-                questions.push({
+                allQuestions.push({
                     id: i,
                     question: `問題 ${i} の内容（後ほど追加予定）`,
                     options: [
@@ -36,12 +47,233 @@ function loadQuestions() {
                 });
             }
         }
-        
-        initializeApp();
+        questionById = new Map(allQuestions.map(q => [q.id, q]));
+
+        // localStorageに保存された状態があれば復元し、なければ通常試験を開始
+        if (!restoreActiveStateFromStorage()) {
+            startNewNormalExamWithOrderChoice();
+        }
     } catch (error) {
         console.error('問題データの読み込みに失敗しました:', error);
         alert('問題データの読み込みに失敗しました。\nエラー: ' + error.message);
     }
+}
+
+function getStorageKeyForMode(targetMode) {
+    return targetMode === 'review' ? STORAGE_KEYS.review : STORAGE_KEYS.normal;
+}
+
+function serializeShuffledOptions() {
+    const serialized = {};
+    Object.keys(shuffledOptions).forEach((id) => {
+        const entry = shuffledOptions[id];
+        if (!entry) return;
+
+        const optionCount = Array.isArray(entry.shuffledOptions) ? entry.shuffledOptions.length : 4;
+        const originalToShuffledArr = new Array(optionCount).fill(null);
+        const shuffledToOriginalArr = new Array(optionCount).fill(null);
+
+        if (entry.originalToShuffled && typeof entry.originalToShuffled.get === 'function') {
+            for (let i = 0; i < optionCount; i++) originalToShuffledArr[i] = entry.originalToShuffled.get(i);
+        }
+        if (entry.shuffledToOriginal && typeof entry.shuffledToOriginal.get === 'function') {
+            for (let i = 0; i < optionCount; i++) shuffledToOriginalArr[i] = entry.shuffledToOriginal.get(i);
+        }
+
+        serialized[id] = {
+            shuffledOptions: entry.shuffledOptions,
+            correctAnswerIndex: entry.correctAnswerIndex,
+            originalToShuffled: originalToShuffledArr,
+            shuffledToOriginal: shuffledToOriginalArr
+        };
+    });
+    return serialized;
+}
+
+function deserializeShuffledOptions(serialized) {
+    const restored = {};
+    if (!serialized || typeof serialized !== 'object') return restored;
+
+    Object.keys(serialized).forEach((id) => {
+        const entry = serialized[id];
+        if (!entry) return;
+
+        const originalToShuffled = new Map();
+        const shuffledToOriginal = new Map();
+        if (Array.isArray(entry.originalToShuffled)) {
+            entry.originalToShuffled.forEach((v, i) => originalToShuffled.set(i, v));
+        }
+        if (Array.isArray(entry.shuffledToOriginal)) {
+            entry.shuffledToOriginal.forEach((v, i) => shuffledToOriginal.set(i, v));
+        }
+
+        restored[id] = {
+            shuffledOptions: entry.shuffledOptions || [],
+            correctAnswerIndex: entry.correctAnswerIndex ?? null,
+            originalToShuffled,
+            shuffledToOriginal
+        };
+    });
+
+    return restored;
+}
+
+function saveStateToStorage() {
+    try {
+        const key = getStorageKeyForMode(mode);
+        const state = {
+            version: 1,
+            mode,
+            activeQuestionIds: questions.map(q => q.id),
+            currentQuestionIndex,
+            userAnswers,
+            skippedQuestionIds: Array.from(skippedQuestions),
+            orderPreference,
+            shuffledOptionsById: serializeShuffledOptions()
+        };
+        localStorage.setItem(STORAGE_KEYS.activeMode, mode);
+        localStorage.setItem(key, JSON.stringify(state));
+    } catch (e) {
+        // localStorageが使えない環境でも動作は継続
+        console.warn('状態の保存に失敗しました:', e);
+    }
+}
+
+function restoreStateFromStorage(targetMode) {
+    try {
+        const raw = localStorage.getItem(getStorageKeyForMode(targetMode));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.activeQuestionIds)) return null;
+        return parsed;
+    } catch (e) {
+        console.warn('状態の復元に失敗しました:', e);
+        return null;
+    }
+}
+
+function applyRestoredState(restored) {
+    mode = restored.mode === 'review' ? 'review' : 'normal';
+    orderPreference = restored.orderPreference ?? null;
+    userAnswers = restored.userAnswers && typeof restored.userAnswers === 'object' ? restored.userAnswers : {};
+    skippedQuestions = new Set(Array.isArray(restored.skippedQuestionIds) ? restored.skippedQuestionIds : []);
+    shuffledOptions = deserializeShuffledOptions(restored.shuffledOptionsById);
+
+    const ids = restored.activeQuestionIds;
+    questions = ids.map(id => questionById.get(id)).filter(Boolean);
+    currentQuestionIndex = Math.min(Math.max(restored.currentQuestionIndex ?? 0, 0), Math.max(questions.length - 1, 0));
+
+    updateModeUI();
+    initializeApp();
+    saveStateToStorage();
+}
+
+function restoreActiveStateFromStorage() {
+    const active = (() => {
+        try {
+            const storedMode = localStorage.getItem(STORAGE_KEYS.activeMode);
+            return storedMode === 'review' ? 'review' : 'normal';
+        } catch {
+            return 'normal';
+        }
+    })();
+
+    const restored = restoreStateFromStorage(active) || restoreStateFromStorage('normal') || restoreStateFromStorage('review');
+    if (!restored) return false;
+
+    applyRestoredState(restored);
+    return true;
+}
+
+function startNewNormalExamWithOrderChoice() {
+    mode = 'normal';
+    questions = [...allQuestions];
+    userAnswers = {};
+    skippedQuestions = new Set();
+    shuffledOptions = {};
+    currentQuestionIndex = 0;
+    updateModeUI();
+
+    showOrderChoiceModal({
+        title: '問題の表示順を選んでください',
+        description: '試験開始時に、問題をどの順番で表示するか選択します。',
+        onChoose: (shuffle) => {
+            orderPreference = shuffle ? 'random' : 'sequential';
+            questions = shuffle ? shuffleArray(questions) : [...questions].sort((a, b) => a.id - b.id);
+            initializeApp();
+            saveStateToStorage();
+        }
+    });
+}
+
+function startReviewExamWithOrderChoice(mistakeQuestionIds) {
+    if (!Array.isArray(mistakeQuestionIds) || mistakeQuestionIds.length === 0) return;
+
+    // 現在のモードの状態を保存し、復習モードへ切り替え
+    saveStateToStorage();
+
+    mode = 'review';
+    const uniqueIds = Array.from(new Set(mistakeQuestionIds)).filter(id => questionById.has(id));
+    questions = uniqueIds.map(id => questionById.get(id)).filter(Boolean);
+    currentQuestionIndex = 0;
+
+    // 復習は毎回新規試験として開始（回答/スキップはリセット）
+    userAnswers = {};
+    skippedQuestions = new Set();
+    updateModeUI();
+
+    showOrderChoiceModal({
+        title: '復習の表示順を選んでください',
+        description: `間違い（未回答/スキップ/不正解） ${questions.length}問 をもう一度解きます。`,
+        onChoose: (shuffle) => {
+            orderPreference = shuffle ? 'random' : 'sequential';
+            questions = shuffle ? shuffleArray(questions) : [...questions].sort((a, b) => a.id - b.id);
+            initializeApp();
+            saveStateToStorage();
+        }
+    });
+}
+
+function switchToNormalMode() {
+    saveStateToStorage();
+    const restored = restoreStateFromStorage('normal');
+    if (restored) {
+        applyRestoredState(restored);
+        return;
+    }
+    startNewNormalExamWithOrderChoice();
+}
+
+function updateModeUI() {
+    const backBtn = document.getElementById('backToNormalButton');
+    const badge = document.getElementById('modeBadge');
+    if (badge) badge.textContent = mode === 'review' ? '復習モード' : '通常モード';
+
+    if (backBtn) {
+        backBtn.style.display = mode === 'review' ? 'inline-flex' : 'none';
+    }
+}
+
+// 表示順選択モーダルを表示し、選択に応じて試験を開始
+function showOrderChoiceModal({ title, description, onChoose }) {
+    const modal = document.getElementById('orderChoiceModal');
+    modal.style.display = 'flex';
+
+    const titleEl = document.getElementById('orderChoiceTitle');
+    const descEl = document.getElementById('orderChoiceDescription');
+    if (titleEl && typeof title === 'string') titleEl.textContent = title;
+    if (descEl && typeof description === 'string') descEl.textContent = description;
+
+    const randomBtn = document.getElementById('orderRandomButton');
+    const sequentialBtn = document.getElementById('orderSequentialButton');
+
+    const startWithOrder = (shuffle) => {
+        modal.style.display = 'none';
+        if (typeof onChoose === 'function') onChoose(shuffle);
+    };
+
+    randomBtn.onclick = () => startWithOrder(true);
+    sequentialBtn.onclick = () => startWithOrder(false);
 }
 
 // アプリを初期化
@@ -118,16 +350,12 @@ function displayQuestion(index) {
     
     // 結果表示ボタンの表示/非表示を更新
     const showResultButton = document.getElementById('showResultButton');
-    if (index === questions.length - 1 && userAnswers[question.id] !== undefined) {
-        // 最後の問題で回答済みの場合のみ表示
-        showResultButton.style.display = 'block';
-    } else {
-        showResultButton.style.display = 'none';
-    }
+    // 最後の問題に到達したら常に表示（スキップ/未回答も「間違い」として結果に含めるため）
+    showResultButton.style.display = index === questions.length - 1 ? 'block' : 'none';
     
     // 問題番号と問題文を更新
     document.getElementById('questionNumber').textContent = question.id;
-    document.getElementById('currentQuestion').textContent = question.id;
+    document.getElementById('currentQuestion').textContent = index + 1;
     document.getElementById('questionText').textContent = question.question;
     
     // 選択肢をシャッフルして取得
@@ -162,11 +390,14 @@ function displayQuestion(index) {
     // 問題一覧の現在の問題をハイライト
     updateQuestionGrid();
     updateProgress();
+    saveStateToStorage();
 }
 
 // 選択肢を選択
 function selectOption(questionId, optionIndex) {
     userAnswers[questionId] = optionIndex;
+    // 回答したらスキップ扱いは解除
+    skippedQuestions.delete(questionId);
     
     // 選択状態を更新
     const options = document.querySelectorAll('.option');
@@ -202,6 +433,8 @@ function selectOption(questionId, optionIndex) {
         const showResultButton = document.getElementById('showResultButton');
         showResultButton.style.display = 'block';
     }
+
+    saveStateToStorage();
 }
 
 // 前の問題へ
@@ -256,6 +489,7 @@ function skipCurrentQuestion() {
     
     // 問題一覧を更新
     updateQuestionGrid();
+    saveStateToStorage();
 }
 
 // 特定の問題へジャンプ
@@ -425,20 +659,137 @@ function calculateAccuracy() {
     };
 }
 
+function getMistakeQuestionIds() {
+    const mistakeIds = [];
+    questions.forEach((question) => {
+        const id = question.id;
+        const userAnswer = userAnswers[id];
+        const isSkipped = skippedQuestions.has(id);
+
+        // 未回答・スキップはすべて「間違い」
+        if (userAnswer === undefined || isSkipped) {
+            mistakeIds.push(id);
+            return;
+        }
+
+        const shuffled = shuffledOptions[id];
+        if (!shuffled || shuffled.correctAnswerIndex === null) return;
+
+        if (userAnswer !== shuffled.correctAnswerIndex) mistakeIds.push(id);
+    });
+    return mistakeIds;
+}
+
+function getMistakeQuestionsForOutput() {
+    const ids = getMistakeQuestionIds();
+    return ids.map((id) => questionById.get(id)).filter(Boolean);
+}
+
+// 間違えた問題の一覧を取得（問題文・正解・解説付き）
+function getWrongAnsweredQuestions() {
+    const wrongList = [];
+    const mistakeQuestions = getMistakeQuestionsForOutput();
+    mistakeQuestions.forEach(question => {
+        const shuffled = getShuffledOptions(question);
+        if (!shuffled || shuffled.correctAnswerIndex === null) return;
+
+        const correctOption = shuffled.shuffledOptions[shuffled.correctAnswerIndex];
+        const adjustedExplanation = question.explanation
+            ? replaceOptionNumbersInExplanation(question.explanation, shuffled)
+            : '';
+
+        const userAnswer = userAnswers[question.id];
+        const isSkipped = skippedQuestions.has(question.id);
+        let status = 'unanswered';
+        if (isSkipped) status = 'skipped';
+        if (userAnswer !== undefined && userAnswer !== shuffled.correctAnswerIndex) status = 'incorrect';
+
+        wrongList.push({
+            id: question.id,
+            question: question.question,
+            correctAnswer: correctOption,
+            explanation: adjustedExplanation,
+            status
+        });
+    });
+    return wrongList;
+}
+
+// 間違えた問題をテキストファイルでダウンロード
+function downloadWrongAnswersAsText() {
+    const wrongList = getWrongAnsweredQuestions();
+    if (wrongList.length === 0) return;
+
+    let content = '■ 間違えた問題一覧（問題文・解答解説）\n';
+    content += `ダウンロード日時: ${new Date().toLocaleString('ja-JP')}\n`;
+    content += `対象: ${wrongList.length} 問\n`;
+    content += '―'.repeat(50) + '\n\n';
+
+    wrongList.forEach((item, index) => {
+        content += `【問題 ${item.id}】\n\n`;
+        content += `問題文:\n${item.question}\n\n`;
+        content += `状態: ${item.status === 'incorrect' ? '不正解' : item.status === 'skipped' ? 'スキップ' : '未回答'}\n\n`;
+        content += `正解: ${item.correctAnswer}\n\n`;
+        if (item.explanation) {
+            content += `解説:\n${item.explanation}\n\n`;
+        } else {
+            content += '解説: （なし）\n\n';
+        }
+        content += '―'.repeat(50) + '\n\n';
+    });
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `間違えた問題_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 // 結果モーダルを表示
 function showResultModal() {
     const result = calculateAccuracy();
     const modal = document.getElementById('resultModal');
-    
+
     document.getElementById('correctCount').textContent = `${result.correctCount}問`;
     document.getElementById('answeredCount').textContent = `${result.answeredCount}問 / ${result.totalCount}問`;
     document.getElementById('accuracyRate').textContent = `${result.accuracy}%`;
-    
+
+    // 間違え（未回答/スキップ/不正解）ボタン群の表示制御
+    const mistakeIds = getMistakeQuestionIds();
+    const wrongList = getWrongAnsweredQuestions();
+    const downloadWrongButton = document.getElementById('downloadWrongButton');
+    if (mistakeIds.length > 0) {
+        downloadWrongButton.style.display = 'inline-block';
+        downloadWrongButton.textContent = `間違えた問題をダウンロード（${mistakeIds.length}問）`;
+    } else {
+        downloadWrongButton.style.display = 'none';
+    }
+
+    const reviewWrongButton = document.getElementById('reviewWrongButton');
+    if (reviewWrongButton) {
+        if (mistakeIds.length > 0) {
+            reviewWrongButton.style.display = 'inline-block';
+            reviewWrongButton.textContent =
+                mode === 'review'
+                    ? `間違いだけでもう一度試験（${mistakeIds.length}問）`
+                    : `間違えた問題だけでもう一度試験（${mistakeIds.length}問）`;
+            reviewWrongButton.disabled = false;
+        } else {
+            reviewWrongButton.style.display = 'none';
+        }
+    }
+
     // メッセージを設定
     const messageDiv = document.getElementById('resultMessage');
     let message = '';
     if (result.answeredCount === 0) {
         message = 'まだ回答がありません。問題に答えてください。';
+    } else if (mode === 'review' && mistakeIds.length === 0) {
+        message = '満点です！復習は完了しました。';
     } else if (result.accuracy >= 80) {
         message = '素晴らしい成績です！合格ラインに達しています。';
     } else if (result.accuracy >= 60) {
@@ -447,8 +798,9 @@ function showResultModal() {
         message = 'もう一度復習して、理解を深めましょう。';
     }
     messageDiv.textContent = message;
-    
+
     modal.style.display = 'flex';
+    saveStateToStorage();
 }
 
 // 結果モーダルを閉じる
@@ -461,13 +813,20 @@ function closeResultModal() {
 function restartExam() {
     // すべての回答をクリア
     userAnswers = {};
-    
+
     // スキップした問題をクリア
     skippedQuestions.clear();
-    
+
     // シャッフルされた選択肢をクリア（次回表示時に再シャッフルされる）
     shuffledOptions = {};
-    
+
+    // 初回の表示順設定に従って並び替え
+    if (orderPreference === 'random') {
+        questions = shuffleArray(questions);
+    } else if (orderPreference === 'sequential') {
+        questions = [...questions].sort((a, b) => a.id - b.id);
+    }
+
     // 現在の問題インデックスを最初に戻す
     currentQuestionIndex = 0;
     
@@ -485,14 +844,33 @@ function restartExam() {
     
     // ページの先頭にスクロール
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    saveStateToStorage();
 }
 
 // イベントリスナーを設定
 function setupEventListeners() {
+    if (eventListenersInitialized) return;
+    eventListenersInitialized = true;
+
     document.getElementById('prevButton').addEventListener('click', goToPreviousQuestion);
     document.getElementById('nextButton').addEventListener('click', goToNextQuestion);
     document.getElementById('skipButton').addEventListener('click', skipCurrentQuestion);
     document.getElementById('showResultButton').addEventListener('click', showResultModal);
+    document.getElementById('downloadWrongButton').addEventListener('click', downloadWrongAnswersAsText);
+    const reviewWrongButton = document.getElementById('reviewWrongButton');
+    if (reviewWrongButton) {
+        reviewWrongButton.addEventListener('click', () => {
+            const ids = getMistakeQuestionIds();
+            startReviewExamWithOrderChoice(ids);
+        });
+    }
+
+    const backToNormalButton = document.getElementById('backToNormalButton');
+    if (backToNormalButton) {
+        backToNormalButton.addEventListener('click', switchToNormalMode);
+    }
+
     document.getElementById('restartButton').addEventListener('click', restartExam);
     document.getElementById('closeModalButton').addEventListener('click', closeResultModal);
     

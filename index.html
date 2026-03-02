@@ -10,6 +10,10 @@
     <div class="container">
         <header>
             <h1>模擬試験 191問</h1>
+            <div class="header-actions">
+                <div class="mode-badge" id="modeBadge">通常モード</div>
+                <button id="backToNormalButton" class="header-action-button" style="display: none;">通常（191問）へ戻る</button>
+            </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -58,6 +62,18 @@
         </main>
     </div>
 
+    <!-- 問題表示順の選択モーダル（初回表示） -->
+    <div class="modal-overlay" id="orderChoiceModal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="orderChoiceTitle">問題の表示順を選んでください</h2>
+            <p class="order-choice-description" id="orderChoiceDescription">試験開始時に、問題をどの順番で表示するか選択します。</p>
+            <div class="modal-buttons order-choice-buttons">
+                <button class="modal-button" id="orderRandomButton">ランダム</button>
+                <button class="modal-button secondary" id="orderSequentialButton">順番（1〜191）</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 正解率表示モーダル -->
     <div class="modal-overlay" id="resultModal" style="display: none;">
         <div class="modal-content">
@@ -78,6 +94,8 @@
             </div>
             <div class="result-message" id="resultMessage"></div>
             <div class="modal-buttons">
+                <button class="modal-button" id="downloadWrongButton" style="display: none;">間違えた問題をダウンロード</button>
+                <button class="modal-button" id="reviewWrongButton" style="display: none;">間違えた問題だけでもう一度試験</button>
                 <button class="modal-button" id="restartButton">再試験を行う</button>
                 <button class="modal-button secondary" id="closeModalButton">閉じる</button>
             </div>

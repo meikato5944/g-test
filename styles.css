@@ -56,6 +56,55 @@ header h1 {
     letter-spacing: -0.02em;
 }
 
+.header-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.mode-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--sky-yellow-4);
+    background: var(--sky-yellow-1);
+    font-size: 0.9em;
+    font-weight: 700;
+    color: var(--sky-black);
+    box-shadow: var(--sky-shadow-sm);
+}
+
+.header-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    font-size: 0.9em;
+    border: 2px solid var(--sky-yellow-4);
+    border-radius: 999px;
+    background: var(--sky-white);
+    color: var(--sky-black);
+    cursor: pointer;
+    transition: var(--sky-transition);
+    font-weight: 700;
+    box-shadow: var(--sky-shadow-sm);
+}
+
+.header-action-button:hover {
+    background: var(--sky-yellow-1);
+    border-color: var(--sky-yellow-5);
+    box-shadow: var(--sky-shadow-md);
+    transform: translateY(-1px);
+}
+
+.header-action-button:active {
+    transform: translateY(0);
+}
+
 .progress-bar {
     width: 100%;
     height: 8px;
@@ -462,6 +511,18 @@ main {
     letter-spacing: -0.02em;
 }
 
+.order-choice-description {
+    text-align: center;
+    color: var(--sky-black);
+    margin-bottom: 24px;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.order-choice-buttons {
+    margin-top: 8px;
+}
+
 .result-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -562,6 +623,10 @@ main {
 
     header h1 {
         font-size: 1.4em;
+    }
+
+    .header-actions {
+        margin-bottom: 10px;
     }
 
     main {
