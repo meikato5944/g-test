@@ -615,8 +615,10 @@ function generateQuestionGrid() {
         const item = document.createElement('div');
         item.className = 'question-item';
         item.dataset.questionId = String(question.id);
-        item.textContent = mode === 'review' ? String(index + 1) : String(question.id);
-        if (mode === 'review') item.title = `元の問題番号: ${question.id}`;
+        // 一覧の番号は「画面上部の問題番号」と一致させる（= 元の問題ID）
+        item.textContent = String(question.id);
+        // 復習モードのときだけ、復習内での並び順をツールチップに出す
+        if (mode === 'review') item.title = `復習内の順番: ${index + 1} / ${questions.length}`;
         item.addEventListener('click', () => jumpToQuestion(question.id));
         grid.appendChild(item);
     });
