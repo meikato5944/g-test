@@ -450,8 +450,9 @@ function displayQuestion(index) {
     // 問題番号と問題文を更新
     const questionNumberEl = document.getElementById('questionNumber');
     if (questionNumberEl) {
-        questionNumberEl.textContent = mode === 'review' ? String(index + 1) : String(question.id);
-        questionNumberEl.title = mode === 'review' ? `元の問題番号: ${question.id}` : '';
+        // 表示上の問題番号は常に元の問題IDを表示する
+        questionNumberEl.textContent = String(question.id);
+        questionNumberEl.title = '';
     }
     document.getElementById('currentQuestion').textContent = index + 1;
     document.getElementById('questionText').textContent = question.question;
