@@ -628,7 +628,17 @@ function generateQuestionGrid() {
 
 // 問題一覧グリッドを更新
 function updateQuestionGrid() {
-    const items = document.querySelectorAll('.question-item');
+    const grid = document.getElementById('questionGrid');
+    if (!grid) return;
+
+    const items = grid.querySelectorAll('.question-item');
+    // モード切替/復元などで一覧DOMが古いまま残ると「出題対象以外」も表示されてしまうため、
+    // 現在の出題リスト（questions）と件数がズレていたら一覧を作り直す。
+    if (items.length !== questions.length) {
+        generateQuestionGrid();
+        return;
+    }
+
     items.forEach((item, index) => {
         item.classList.remove('current', 'answered', 'correct-answered', 'incorrect-answered', 'skipped');
         
@@ -638,6 +648,14 @@ function updateQuestionGrid() {
         
         const questionId = questions[index].id;
         const question = questions[index];
+        // 一覧の表示番号は常に「元の問題ID」に揃える（復習モードでもズレないよう更新時にも補正）
+        item.textContent = String(questionId);
+        item.dataset.questionId = String(questionId);
+        if (mode === 'review') {
+            item.title = `復習内の順番: ${index + 1} / ${questions.length}`;
+        } else {
+            item.title = '';
+        }
         const userAnswer = userAnswers[questionId];
         const isSkipped = skippedQuestions.has(questionId);
         
