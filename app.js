@@ -9,6 +9,7 @@ let skippedQuestions = new Set(); // スキップした問題IDのセット
 let orderPreference = null; // 'random' | 'sequential'（初回モーダルで選択）
 let mode = 'normal'; // 'normal' | 'review'
 let eventListenersInitialized = false;
+let orderChoiceHiddenByImport = false;
 
 const STORAGE_KEYS = {
     activeMode: 'gtest_quiz_active_mode_v1',
@@ -260,6 +261,13 @@ function updateModeUI() {
 function openImportReviewModal() {
     const modal = document.getElementById('importReviewModal');
     if (!modal) return;
+    const orderChoiceModal = document.getElementById('orderChoiceModal');
+    if (orderChoiceModal && orderChoiceModal.style.display !== 'none') {
+        orderChoiceHiddenByImport = true;
+        orderChoiceModal.style.display = 'none';
+    } else {
+        orderChoiceHiddenByImport = false;
+    }
     modal.style.display = 'flex';
 }
 
@@ -267,6 +275,11 @@ function closeImportReviewModal() {
     const modal = document.getElementById('importReviewModal');
     if (!modal) return;
     modal.style.display = 'none';
+    if (orderChoiceHiddenByImport) {
+        const orderChoiceModal = document.getElementById('orderChoiceModal');
+        if (orderChoiceModal) orderChoiceModal.style.display = 'flex';
+        orderChoiceHiddenByImport = false;
+    }
 }
 
 function parseQuestionIdsFromText(text) {
@@ -316,6 +329,42 @@ function showOrderChoiceModal({ title, description, onChoose }) {
 
     randomBtn.onclick = () => startWithOrder(true);
     sequentialBtn.onclick = () => startWithOrder(false);
+}
+
+function backToStartOrderChoice() {
+    closeResultModal();
+    closeImportReviewModal();
+
+    // 試験状態を初期化（復習モードの場合は「現在の復習対象」を維持したままやり直し）
+    if (mode === 'normal') {
+        questions = [...allQuestions];
+    } else {
+        const currentIds = questions.map(q => q.id);
+        questions = currentIds.map(id => questionById.get(id)).filter(Boolean);
+    }
+
+    userAnswers = {};
+    skippedQuestions = new Set();
+    shuffledOptions = {};
+    currentQuestionIndex = 0;
+    updateModeUI();
+
+    const title = mode === 'review' ? '復習の表示順を選んでください' : '問題の表示順を選んでください';
+    const description =
+        mode === 'review'
+            ? `復習対象 ${questions.length}問 をもう一度解きます。`
+            : '試験開始時に、問題をどの順番で表示するか選択します。';
+
+    showOrderChoiceModal({
+        title,
+        description,
+        onChoose: (shuffle) => {
+            orderPreference = shuffle ? 'random' : 'sequential';
+            questions = shuffle ? shuffleArray(questions) : [...questions].sort((a, b) => a.id - b.id);
+            initializeApp();
+            saveStateToStorage();
+        }
+    });
 }
 
 // アプリを初期化
@@ -912,6 +961,11 @@ function setupEventListeners() {
     const backToNormalButton = document.getElementById('backToNormalButton');
     if (backToNormalButton) {
         backToNormalButton.addEventListener('click', switchToNormalMode);
+    }
+
+    const backToStartButton = document.getElementById('backToStartButton');
+    if (backToStartButton) {
+        backToStartButton.addEventListener('click', backToStartOrderChoice);
     }
 
     const importWrongTextButton = document.getElementById('importWrongTextButton');

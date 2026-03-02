@@ -521,6 +521,8 @@ main {
 
 .order-choice-buttons {
     margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .import-row {
@@ -610,10 +612,12 @@ main {
     display: flex;
     gap: 15px;
     margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .modal-button {
-    flex: 1;
+    flex: 1 1 220px;
     padding: 12px 24px;
     font-size: 0.95em;
     border: 2px solid var(--sky-yellow-4);
