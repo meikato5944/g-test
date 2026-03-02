@@ -96,8 +96,34 @@
             <div class="modal-buttons">
                 <button class="modal-button" id="downloadWrongButton" style="display: none;">間違えた問題をダウンロード</button>
                 <button class="modal-button" id="reviewWrongButton" style="display: none;">間違えた問題だけでもう一度試験</button>
+                <button class="modal-button secondary" id="importWrongTextButton">テキストをインポートして復習</button>
                 <button class="modal-button" id="restartButton">再試験を行う</button>
                 <button class="modal-button secondary" id="closeModalButton">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- テキストインポート（復習用）モーダル -->
+    <div class="modal-overlay" id="importReviewModal" style="display: none;">
+        <div class="modal-content">
+            <h2>テキストをインポートして復習</h2>
+            <p class="order-choice-description">
+                「間違えた問題をダウンロード」で出力したテキストを貼り付けるか、ファイルを選択してください。
+            </p>
+
+            <div class="import-row">
+                <label class="import-label" for="importReviewFile">ファイル選択（.txt）</label>
+                <input id="importReviewFile" class="import-file" type="file" accept=".txt,text/plain" />
+            </div>
+
+            <div class="import-row">
+                <label class="import-label" for="importReviewText">テキスト貼り付け</label>
+                <textarea id="importReviewText" class="import-textarea" rows="10" placeholder="ここにテキストを貼り付けてください（例: 【問題 12】 など）"></textarea>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-button" id="importReviewStartButton">このテキストで復習を開始</button>
+                <button class="modal-button secondary" id="importReviewCancelButton">キャンセル</button>
             </div>
         </div>
     </div>

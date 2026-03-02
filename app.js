@@ -257,6 +257,45 @@ function updateModeUI() {
     }
 }
 
+function openImportReviewModal() {
+    const modal = document.getElementById('importReviewModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+}
+
+function closeImportReviewModal() {
+    const modal = document.getElementById('importReviewModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function parseQuestionIdsFromText(text) {
+    if (!text) return [];
+    const ids = [];
+
+    // ダウンロードテキストの形式（例: 【問題 12】）を優先して抽出
+    const pattern = /【\s*問題\s*(\d+)\s*】/g;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+        ids.push(Number(match[1]));
+    }
+
+    // 何も取れない場合に備え、弱いパターンも許容（例: 問題 12）
+    if (ids.length === 0) {
+        const fallback = /(?:^|\s)問題\s*(\d+)(?:\s|$)/g;
+        while ((match = fallback.exec(text)) !== null) {
+            ids.push(Number(match[1]));
+        }
+    }
+
+    const normalized = ids
+        .filter((n) => Number.isFinite(n))
+        .map((n) => Math.trunc(n))
+        .filter((n) => n >= 1 && n <= 191);
+
+    return Array.from(new Set(normalized));
+}
+
 // 表示順選択モーダルを表示し、選択に応じて試験を開始
 function showOrderChoiceModal({ title, description, onChoose }) {
     const modal = document.getElementById('orderChoiceModal');
@@ -875,6 +914,54 @@ function setupEventListeners() {
         backToNormalButton.addEventListener('click', switchToNormalMode);
     }
 
+    const importWrongTextButton = document.getElementById('importWrongTextButton');
+    if (importWrongTextButton) {
+        importWrongTextButton.addEventListener('click', () => {
+            openImportReviewModal();
+        });
+    }
+
+    const importReviewCancelButton = document.getElementById('importReviewCancelButton');
+    if (importReviewCancelButton) {
+        importReviewCancelButton.addEventListener('click', closeImportReviewModal);
+    }
+
+    const importReviewStartButton = document.getElementById('importReviewStartButton');
+    if (importReviewStartButton) {
+        importReviewStartButton.addEventListener('click', () => {
+            const textarea = document.getElementById('importReviewText');
+            const text = textarea ? textarea.value : '';
+            const ids = parseQuestionIdsFromText(text).filter((id) => questionById.has(id));
+
+            if (ids.length === 0) {
+                alert('問題番号が見つかりませんでした。\n「間違えた問題をダウンロード」で出力したテキストを貼り付けてください。');
+                return;
+            }
+
+            closeImportReviewModal();
+            closeResultModal();
+            startReviewExamWithOrderChoice(ids);
+        });
+    }
+
+    const importReviewFile = document.getElementById('importReviewFile');
+    if (importReviewFile) {
+        importReviewFile.addEventListener('change', (e) => {
+            const file = e.target && e.target.files ? e.target.files[0] : null;
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const textarea = document.getElementById('importReviewText');
+                if (textarea) textarea.value = String(reader.result || '');
+            };
+            reader.onerror = () => {
+                alert('ファイルの読み込みに失敗しました。別のファイルを選択してください。');
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+    }
+
     document.getElementById('restartButton').addEventListener('click', restartExam);
     document.getElementById('closeModalButton').addEventListener('click', closeResultModal);
     
@@ -884,6 +971,13 @@ function setupEventListeners() {
             closeResultModal();
         }
     });
+
+    const importReviewModal = document.getElementById('importReviewModal');
+    if (importReviewModal) {
+        importReviewModal.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'importReviewModal') closeImportReviewModal();
+        });
+    }
     
     // キーボードショートカット
     document.addEventListener('keydown', (e) => {

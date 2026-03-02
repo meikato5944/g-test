@@ -523,6 +523,42 @@ main {
     margin-top: 8px;
 }
 
+.import-row {
+    margin-top: 16px;
+}
+
+.import-label {
+    display: block;
+    font-weight: 700;
+    color: var(--sky-black);
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.import-file {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--sky-yellow-4);
+    border-radius: var(--sky-radius-md);
+    background: var(--sky-white);
+    box-shadow: var(--sky-shadow-sm);
+}
+
+.import-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 160px;
+    padding: 12px;
+    border: 2px solid var(--sky-yellow-4);
+    border-radius: var(--sky-radius-md);
+    background: var(--sky-white);
+    box-shadow: var(--sky-shadow-sm);
+    font-size: 0.95em;
+    line-height: 1.6;
+    color: var(--sky-black);
+    white-space: pre-wrap;
+}
+
 .result-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
