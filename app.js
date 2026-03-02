@@ -209,6 +209,9 @@ function startNewNormalExamWithOrderChoice() {
 function startReviewExamWithOrderChoice(mistakeQuestionIds) {
     if (!Array.isArray(mistakeQuestionIds) || mistakeQuestionIds.length === 0) return;
 
+    // 結果モーダルが開いている場合は閉じる（モーダルの重なり防止）
+    closeResultModal();
+
     // 現在のモードの状態を保存し、復習モードへ切り替え
     saveStateToStorage();
 
@@ -862,6 +865,7 @@ function setupEventListeners() {
     if (reviewWrongButton) {
         reviewWrongButton.addEventListener('click', () => {
             const ids = getMistakeQuestionIds();
+            closeResultModal();
             startReviewExamWithOrderChoice(ids);
         });
     }
