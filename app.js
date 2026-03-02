@@ -321,6 +321,9 @@ function showOrderChoiceModal({ title, description, onChoose }) {
 
     const randomBtn = document.getElementById('orderRandomButton');
     const sequentialBtn = document.getElementById('orderSequentialButton');
+    if (sequentialBtn) {
+        sequentialBtn.textContent = `順番（1〜${questions.length}）`;
+    }
 
     const startWithOrder = (shuffle) => {
         modal.style.display = 'none';
@@ -445,7 +448,11 @@ function displayQuestion(index) {
     showResultButton.style.display = index === questions.length - 1 ? 'block' : 'none';
     
     // 問題番号と問題文を更新
-    document.getElementById('questionNumber').textContent = question.id;
+    const questionNumberEl = document.getElementById('questionNumber');
+    if (questionNumberEl) {
+        questionNumberEl.textContent = mode === 'review' ? String(index + 1) : String(question.id);
+        questionNumberEl.title = mode === 'review' ? `元の問題番号: ${question.id}` : '';
+    }
     document.getElementById('currentQuestion').textContent = index + 1;
     document.getElementById('questionText').textContent = question.question;
     
@@ -603,10 +610,12 @@ function generateQuestionGrid() {
     const grid = document.getElementById('questionGrid');
     grid.innerHTML = '';
     
-    questions.forEach(question => {
+    questions.forEach((question, index) => {
         const item = document.createElement('div');
         item.className = 'question-item';
-        item.textContent = question.id;
+        item.dataset.questionId = String(question.id);
+        item.textContent = mode === 'review' ? String(index + 1) : String(question.id);
+        if (mode === 'review') item.title = `元の問題番号: ${question.id}`;
         item.addEventListener('click', () => jumpToQuestion(question.id));
         grid.appendChild(item);
     });
